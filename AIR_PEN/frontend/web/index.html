@@ -1,0 +1,405 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Air-Pen Studio | Next-Gen Touchless Gesture Drawing</title>
+  <meta name="description" content="Real-time touchless computer vision air-writing and drawing engine powered by MediaPipe Hands.">
+  <meta name="theme-color" content="#0d0e12">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <!-- Splash / Loading Screen -->
+  <div class="splash-screen" id="splashScreen">
+    <div class="splash-content">
+      <div class="splash-logo">
+        <div class="splash-rings">
+          <div class="ring ring-1"></div>
+          <div class="ring ring-2"></div>
+          <div class="ring ring-3"></div>
+        </div>
+        <div class="splash-icon">✍️</div>
+      </div>
+      <h2 class="splash-title">AIR-PEN <span>STUDIO</span></h2>
+      <p class="splash-sub">Connecting to vision engine...</p>
+      <div class="splash-bar"><div class="splash-bar-fill" id="splashBarFill"></div></div>
+    </div>
+  </div>
+
+  <!-- Keyboard Shortcut Overlay -->
+  <div class="shortcuts-overlay" id="shortcutsOverlay">
+    <div class="shortcuts-modal glass-panel">
+      <div class="shortcuts-header">
+        <h2>⌨️ Keyboard Shortcuts</h2>
+        <button class="close-shortcuts" id="closeShortcuts">✕</button>
+      </div>
+      <div class="shortcuts-grid">
+        <div class="shortcut-item"><kbd>U</kbd><span>Undo stroke</span></div>
+        <div class="shortcut-item"><kbd>C</kbd><span>Clear canvas</span></div>
+        <div class="shortcut-item"><kbd>S</kbd><span>Save artwork</span></div>
+        <div class="shortcut-item"><kbd>M</kbd><span>Toggle board mode</span></div>
+        <div class="shortcut-item"><kbd>G</kbd><span>Toggle guidelines</span></div>
+        <div class="shortcut-item"><kbd>D</kbd><span>Run AI demo</span></div>
+        <div class="shortcut-item"><kbd>1-3</kbd><span>Writing modes</span></div>
+        <div class="shortcut-item"><kbd>Enter</kbd><span>Stamp word to canvas</span></div>
+        <div class="shortcut-item"><kbd>Space</kbd><span>Add space to word</span></div>
+        <div class="shortcut-item"><kbd>Bksp</kbd><span>Delete letter</span></div>
+        <div class="shortcut-item"><kbd>?</kbd><span>Show shortcuts</span></div>
+        <div class="shortcut-item"><kbd>ESC</kbd><span>Close overlays</span></div>
+      </div>
+      <div class="shortcuts-footer">Drag over the webcam feed to draw with your mouse!</div>
+    </div>
+  </div>
+
+  <!-- Lightbox for Gallery -->
+  <div class="lightbox-overlay" id="lightboxOverlay">
+    <div class="lightbox-content">
+      <button class="lightbox-close" id="lightboxClose">✕</button>
+      <img class="lightbox-img" id="lightboxImg" src="" alt="Artwork Preview">
+      <div class="lightbox-actions">
+        <a class="lightbox-dl-btn" id="lightboxPngDl" href="#" download>⬇ Download PNG</a>
+        <a class="lightbox-dl-btn" id="lightboxSvgDl" href="#" download>⬇ Download SVG</a>
+      </div>
+    </div>
+  </div>
+
+  <div class="app-container">
+    <!-- Top Navigation Bar -->
+    <header class="glass-header">
+      <div class="brand-badge">
+        <div class="brand-logo-mark">
+          <div class="pulse-dot"></div>
+        </div>
+        <div class="brand-titles">
+          <h1>AIR-PEN <span class="accent-text">STUDIO</span></h1>
+          <span class="brand-sub">Computer Vision Spatial Drawing</span>
+        </div>
+      </div>
+
+      <div class="header-center-pill" id="gestureStatusPill">
+        <div class="gesture-anim-dot" id="gestureAnimDot"></div>
+        <span class="gesture-icon" id="gestureIcon">⚡</span>
+        <span class="gesture-name" id="gestureName">Connecting...</span>
+      </div>
+
+      <div class="header-actions">
+        <div class="connection-status" id="connectionStatus" title="Server connection status">
+          <div class="conn-dot" id="connDot"></div>
+          <span class="conn-label" id="connLabel">LIVE</span>
+        </div>
+        <div class="header-sep"></div>
+        <button class="action-btn" id="btnDemo" title="Run AI Demo Sequence (D)">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+          <span>AI Demo</span>
+        </button>
+        <button class="action-btn" id="btnGuidelines" title="Toggle Handwriting Guide (G)">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+          <span id="guidelinesLabel">Guide</span>
+        </button>
+        <button class="action-btn" id="btnUndo" title="Undo Stroke (U)">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7v6h6"/><path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13"/></svg>
+          <span>Undo</span>
+        </button>
+        <button class="action-btn" id="btnClear" title="Clear Canvas (C)">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
+          <span>Clear</span>
+        </button>
+        <button class="action-btn" id="btnMode" title="Toggle Board Mode (M)">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M3 9h18"/><path d="M9 21V9"/></svg>
+          <span id="canvasModeLabel">Board</span>
+        </button>
+        <button class="action-btn primary-btn" id="btnSave" title="Save Artwork (S)">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+          <span>Save Art</span>
+        </button>
+        <button class="action-btn icon-only-btn" id="btnShortcuts" title="Keyboard Shortcuts (?)">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="6" width="20" height="12" rx="2"/><path d="M6 10h.01M10 10h.01M14 10h.01M18 10h.01M8 14h8"/></svg>
+        </button>
+      </div>
+    </header>
+
+    <!-- Connection Lost Banner -->
+    <div class="offline-banner" id="offlineBanner">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 1l22 22"/><path d="M16.72 11.06A10.94 10.94 0 0 1 19 12.55"/><path d="M5 12.55a10.94 10.94 0 0 1 5.17-2.39"/><path d="M10.71 5.05A16 16 0 0 1 22.56 9"/><path d="M1.42 9a15.91 15.91 0 0 1 4.7-2.88"/><path d="M8.53 16.11a6 6 0 0 1 6.95 0"/><circle cx="12" cy="20" r="1"/></svg>
+      <span>Connection lost — attempting to reconnect...</span>
+      <div class="offline-dots"><span></span><span></span><span></span></div>
+    </div>
+
+    <!-- Main Workspace -->
+    <main class="workspace">
+      <!-- Video Feed Container -->
+      <section class="viewport-card glass-panel">
+        <div class="video-wrapper" id="videoWrapper">
+          <img id="liveFeed" src="/video_feed" alt="Air-Pen Real-time Stream">
+
+          <!-- Session Stats HUD (bottom-left) -->
+          <div class="session-stats-hud">
+            <div class="stat-badge">
+              <span class="stat-num" id="statStrokes">0</span>
+              <span class="stat-desc">STROKES</span>
+            </div>
+            <div class="stat-badge-sep"></div>
+            <div class="stat-badge">
+              <span class="stat-num" id="statFps">--</span>
+              <span class="stat-desc">FPS</span>
+            </div>
+            <div class="stat-badge-sep"></div>
+            <div class="stat-badge">
+              <span class="stat-num" id="statPalm">--</span>
+              <span class="stat-desc">PALM PX</span>
+            </div>
+          </div>
+
+          <!-- Telemetry HUD Overlay (top-right) -->
+          <div class="hud-telemetry">
+            <div class="telemetry-item">
+              <span class="tel-label">DISTANCE</span>
+              <span class="tel-val" id="telDist">Detecting...</span>
+            </div>
+            <div class="tel-sep"></div>
+            <div class="telemetry-item">
+              <span class="tel-label">REACH GAIN</span>
+              <span class="tel-val" id="telReach">1.0x</span>
+            </div>
+          </div>
+
+          <!-- Toast Banner -->
+          <div class="toast-banner" id="toastBanner">
+            <div class="toast-check">✓</div>
+            <span id="toastMsg">Ready</span>
+          </div>
+
+          <!-- Camera offline placeholder -->
+          <div class="camera-offline" id="cameraOffline">
+            <div class="cam-offline-icon">📷</div>
+            <div class="cam-offline-text">Camera / Server Offline</div>
+            <div class="cam-offline-sub">Run: <code>python AIR_PEN/backend/server.py</code></div>
+          </div>
+        </div>
+
+        <!-- Floating Quick Palette & Brush / Reach Adjuster -->
+        <div class="floating-dock">
+          <div class="palette-swatches">
+            <button class="swatch-btn active" data-color="cyan" style="--c: #00F0FF;" title="Neon Cyan"></button>
+            <button class="swatch-btn" data-color="magenta" style="--c: #FF14DC;" title="Hot Magenta"></button>
+            <button class="swatch-btn" data-color="lime" style="--c: #32FF32;" title="Emerald Lime"></button>
+            <button class="swatch-btn" data-color="amber" style="--c: #FFA500;" title="Sunburst Amber"></button>
+            <button class="swatch-btn" data-color="white" style="--c: #FFFFFF;" title="Bright White"></button>
+          </div>
+          <div class="dock-divider"></div>
+          <!-- Custom Color Picker -->
+          <div class="custom-color-box" title="Pick any custom colour">
+            <label class="custom-color-label" for="customColorPicker">CUSTOM</label>
+            <input type="color" id="customColorPicker" class="custom-color-input" value="#FF6600">
+          </div>
+          <div class="dock-divider"></div>
+          <!-- Gradient Mode -->
+          <div class="gradient-box">
+            <span class="slider-label">GRADIENT</span>
+            <div class="gradient-chips">
+              <button class="grad-chip active" data-grad="none" title="No gradient">Off</button>
+              <button class="grad-chip rainbow-chip" data-grad="rainbow" title="Rainbow sweep">🌈</button>
+              <button class="grad-chip" data-grad="custom" title="Custom blend">A→B</button>
+            </div>
+            <input type="color" id="gradEndColorPicker" class="custom-color-input grad-end-picker" value="#FF14DC" title="Gradient end colour">
+          </div>
+          <div class="dock-divider"></div>
+          <div class="brush-slider-box">
+            <span class="slider-label">SIZE</span>
+            <input type="range" id="brushSlider" min="2" max="40" value="6">
+            <span class="slider-val" id="brushVal">6px</span>
+          </div>
+          <div class="dock-divider"></div>
+          <div class="brush-slider-box">
+            <span class="slider-label">REACH</span>
+            <input type="range" id="reachSlider" min="0.8" max="2.2" step="0.1" value="1.35">
+            <span class="slider-val" id="reachVal">1.4x</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- Sidebar: Controls, Gestures & Saved Gallery -->
+      <aside class="sidebar">
+        <!-- AI Handwriting Recognition Card -->
+        <div class="glass-panel recognition-card">
+          <div class="panel-header">
+            <h3>AI WORD RECOGNITION</h3>
+            <span class="badge-mini highlight-badge" id="badgeActiveFinger">☝️ INDEX</span>
+          </div>
+          <div class="recognition-content">
+            <div class="char-result-row">
+              <div class="char-box">
+                <span class="rec-label">LAST LETTER</span>
+                <span class="char-big" id="recCharVal">--</span>
+                <span class="rec-sub" id="recConfVal">Air-writing active</span>
+              </div>
+              <div class="pen-tip-box">
+                <span class="rec-label">ACTIVE PEN-TIP</span>
+                <span class="pen-tip-name" id="recFingerVal">Index Finger</span>
+                <span class="rec-sub">Any 1 finger draws</span>
+              </div>
+            </div>
+
+            <div class="word-buffer-box">
+              <div class="word-buffer-header">
+                <span class="rec-label">ACCUMULATED WORD</span>
+                <div class="word-actions">
+                  <button class="btn-word-action" id="btnAddSpace" title="Add Space (+ Space)">+ Space</button>
+                  <button class="btn-word-action" id="btnBackspace" title="Backspace (⌫)">⌫</button>
+                  <button class="btn-word-action btn-clear-word" id="btnClearWord" title="Clear Recognized Word">Clear</button>
+                </div>
+              </div>
+              <div class="word-text" id="recWordDisplay">--</div>
+              <button class="btn-stamp-word" id="btnTypeWord" title="Stamp Accumulated Word to Canvas (Enter)">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+                <span>Stamp to Canvas</span>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Pen Writing Mode Card -->
+        <div class="glass-panel pen-mode-card">
+          <div class="panel-header">
+            <h3>PEN WRITING MODE</h3>
+            <span class="badge-mini highlight-badge" id="badgeWritingMode">PINCH</span>
+          </div>
+          <div class="opt-section">
+            <div class="opt-label">Writing Trigger:</div>
+            <div class="btn-group-chips writing-mode-chips">
+              <button class="mode-chip active" data-mode="pinch" id="modePinchBtn" title="Pinch thumb & index to ink; release to hover">
+                🤏 Pen-Grip
+              </button>
+              <button class="mode-chip" data-mode="point" id="modePointBtn" title="Index pointing draws; peace sign hovers">
+                ☝️ Point
+              </button>
+              <button class="mode-chip" data-mode="depth" id="modeDepthBtn" title="Push forward in 3D to write; pull back to hover">
+                🎯 Z-Touch
+              </button>
+            </div>
+            <div class="mode-desc-text" id="modeDescText">
+              <strong>Pen-Grip:</strong> Pinch thumb + index to draw letters cleanly without unwanted cursive connections.
+            </div>
+          </div>
+        </div>
+
+        <!-- Distance & Smoothness Optimization Card -->
+        <div class="glass-panel reach-opt-card">
+          <div class="panel-header">
+            <h3>DISTANCE &amp; REACH</h3>
+            <span class="badge-mini">AMPLIFIER</span>
+          </div>
+          <div class="opt-section">
+            <div class="opt-label">Coverage Range:</div>
+            <div class="btn-group-chips">
+              <button class="opt-chip" data-reach="1.0">Desk (1.0x)</button>
+              <button class="opt-chip active" data-reach="1.4">Room (1.4x)</button>
+              <button class="opt-chip" data-reach="2.0">Stage (2.0x)</button>
+            </div>
+            <div class="opt-label" style="margin-top: 10px;">Ink Smoothing:</div>
+            <div class="btn-group-chips">
+              <button class="smooth-chip" data-smooth="cinema">Cinema</button>
+              <button class="smooth-chip active" data-smooth="balanced">Balanced</button>
+              <button class="smooth-chip" data-smooth="fast">Fast</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Gesture Guide Card -->
+        <div class="glass-panel guide-card">
+          <div class="panel-header">
+            <h3>SPATIAL GESTURES</h3>
+            <span class="badge-mini">AI VISION</span>
+          </div>
+          <div class="gesture-list">
+            <div class="gesture-row" id="gRowDraw">
+              <div class="g-icon">☝️</div>
+              <div class="g-info">
+                <strong>Any One Finger</strong>
+                <span>Air-Draw / Write Words</span>
+              </div>
+              <div class="g-active-ring"></div>
+            </div>
+            <div class="gesture-row" id="gRowErase">
+              <div class="g-icon">👋</div>
+              <div class="g-info">
+                <strong>"Bye" Wave / Palm</strong>
+                <span>Instant Eraser Wipe</span>
+              </div>
+              <div class="g-active-ring"></div>
+            </div>
+            <div class="gesture-row" id="gRowHover">
+              <div class="g-icon">✌️</div>
+              <div class="g-info">
+                <strong>Peace Sign</strong>
+                <span>Hover &amp; Move Pointer</span>
+              </div>
+              <div class="g-active-ring"></div>
+            </div>
+            <div class="gesture-row" id="gRowPinch">
+              <div class="g-icon">🤏</div>
+              <div class="g-info">
+                <strong>Pinch (Thumb+Index)</strong>
+                <span>Resize Brush Size</span>
+              </div>
+              <div class="g-active-ring"></div>
+            </div>
+            <div class="gesture-row" id="gRowIdle">
+              <div class="g-icon">✊</div>
+              <div class="g-info">
+                <strong>Closed Fist</strong>
+                <span>Pause / Idle</span>
+              </div>
+              <div class="g-active-ring"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Write Words Tool -->
+        <div class="glass-panel text-writer-card">
+          <div class="panel-header">
+            <h3>WRITE WORDS</h3>
+            <span class="badge-mini">NEON INK</span>
+          </div>
+          <div class="text-writer-content">
+            <div class="input-row">
+              <input type="text" id="textWordInput" placeholder="Type words..." value="AIR-PEN STUDIO" autocomplete="off">
+              <button class="btn-write-text" id="btnWriteText">Write</button>
+            </div>
+            <div class="word-presets">
+              <button class="word-chip" data-word="Hello World">Hello World</button>
+              <button class="word-chip" data-word="AIR-PEN">AIR-PEN</button>
+              <button class="word-chip" data-word="Vision AI">Vision AI</button>
+              <button class="word-chip" data-word="Smooth Vector">Smooth Vector</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Saved Gallery Card -->
+        <div class="glass-panel gallery-card">
+          <div class="panel-header">
+            <h3>ARTWORK GALLERY</h3>
+            <div class="gallery-header-right">
+              <span class="gallery-count" id="galleryCount"></span>
+              <button class="refresh-btn" id="btnRefreshGallery" title="Refresh Gallery">↻</button>
+            </div>
+          </div>
+          <div class="gallery-grid" id="galleryGrid">
+            <div class="empty-state">
+              <div class="empty-icon">🎨</div>
+              <span>No artworks yet</span>
+              <span class="empty-sub">Draw and hit Save!</span>
+            </div>
+          </div>
+        </div>
+      </aside>
+    </main>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
